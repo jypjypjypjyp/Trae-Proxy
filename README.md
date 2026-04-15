@@ -1,4 +1,4 @@
-Modified from [Trae-Proxy](https://github.com/arch3rPro/Trae-Proxy)
+> 本项目修改自 [Trae-Proxy](https://github.com/arch3rPro/Trae-Proxy)，在此向原作者 arch3rPro 表示衷心感谢！
 
 ## 🆕 更新日志
 
