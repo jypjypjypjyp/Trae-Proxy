@@ -1,0 +1,9 @@
+.venv
+.vscode
+**/__pycache__
+ca
+debug_request.log
+nohup.out
+proxy.log
+AGENTS.md
+MEMORY.md

@@ -1,0 +1,47 @@
+# Trae-Proxy 配置文件
+# 代理域名配置
+domain: api.openai.com
+
+# 后端 API 配置列表
+# endpoint 从环境变量 ANTHROPIC_BASE_URL 读取
+apis:
+  - name: "kimi-k2.5"
+    custom_model_id: "kimi-k2.5"
+    target_model_id: "kimi-k2.5"
+    stream_mode: null
+    active: true
+  - name: "claude-sonnet-4-6"
+    custom_model_id: "claude-sonnet-4-6"
+    target_model_id: "claude-sonnet-4-6"
+    stream_mode: null
+    active: true
+  - name: "gemini-3.1-pro"
+    custom_model_id: "gemini-3.1-pro"
+    target_model_id: "gemini-3.1-pro"
+    stream_mode: null
+    active: true
+  - name: "gpt-5.4"
+    custom_model_id: "gpt-5.4"
+    target_model_id: "gpt-5.4"
+    stream_mode: null
+    active: true
+  - name: "qwen3.6-plus"
+    custom_model_id: "qwen3.6-plus"
+    target_model_id: "qwen3.6-plus"
+    stream_mode: null
+    active: true
+  - name: "glm-5.1"
+    custom_model_id: "glm-5.1"
+    target_model_id: "glm-5.1"
+    stream_mode: null
+    active: true
+  - name: "minimax-m2.7"
+    custom_model_id: "minimax-m2.7"
+    target_model_id: "minimax-m2.7"
+    stream_mode: null
+    active: true
+
+# 代理服务器配置
+server:
+  port: 443
+  debug: true
