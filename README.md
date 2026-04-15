@@ -110,7 +110,7 @@ server:
 
 ```bash
 # 从服务器复制CA证书
-scp user@your-server-ip:/path/to/trae-proxy/ca/api.openai.com.crt .
+scp user@your-server-ip:/path/to/trae-proxy/ca/ca.crt .
 ```
 
 ### 2. 安装CA证书
