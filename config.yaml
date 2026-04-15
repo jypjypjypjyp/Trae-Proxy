@@ -44,4 +44,4 @@ apis:
 # 代理服务器配置
 server:
   port: 443
-  debug: true
+  debug: false
