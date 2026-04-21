@@ -140,6 +140,12 @@ def generate_stream(response):
                 buffer += chunk
                 while "\n\n" in buffer:
                     event, buffer = buffer.split("\n\n", 1)
+                    # 拦截 GLM 的非标准事件
+                    if "event: progress_notice" in event or "event: context_usage" in event:
+                        log_content = event.replace('\n', ' | ')
+                        logger.debug(f"Discarded unsupported SSE event: {log_content}")
+                        debug_log(f"Discarded unsupported SSE event: {log_content}")
+                        continue # 继续等待后续的标准消息，不断开流
                     yield (event + "\n\n").encode("utf-8")
         if buffer.strip():
             yield (buffer + "\n\n").encode("utf-8")
@@ -236,7 +242,6 @@ def chat_completions():
             target_model_id = selected_backend.get('target_model_id', '').strip()
             custom_model_id = selected_backend.get('custom_model_id', '').strip()
             stream_mode = selected_backend.get('stream_mode')
-            
             logger.info(f"选择后端: {selected_backend['name']} -> {target_api_url}")
             
             # 修改模型ID
