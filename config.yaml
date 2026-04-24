@@ -5,9 +5,9 @@ domain: api.openai.com
 # 后端 API 配置列表
 # endpoint 从环境变量 ANTHROPIC_BASE_URL 读取
 apis:
-  - name: "kimi-k2.5"
-    custom_model_id: "kimi-k2.5"
-    target_model_id: "kimi-k2.5"
+  - name: "kimi-k2.6"
+    custom_model_id: "kimi-k2.6"
+    target_model_id: "kimi-k2.6"
     stream_mode: null
     active: true
   - name: "claude-sonnet-4-6"
@@ -28,6 +28,11 @@ apis:
   - name: "qwen3.6-plus"
     custom_model_id: "qwen3.6-plus"
     target_model_id: "qwen3.6-plus"
+    stream_mode: null
+    active: true
+  - name: "qwen3.6-max-anthropic"
+    custom_model_id: "qwen3.6-max-anthropic"
+    target_model_id: "qwen3.6-max-anthropic"
     stream_mode: null
     active: true
   - name: "glm-5.1"
