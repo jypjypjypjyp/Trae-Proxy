@@ -220,13 +220,15 @@ def simulate_stream(response_json, model_id):
 
 
 def _has_image_content(messages):
-    """检查消息中是否包含图片（image_url 类型的内容）"""
-    for msg in messages:
-        content = msg.get('content', '')
-        if isinstance(content, list):
-            for item in content:
-                if isinstance(item, dict) and item.get('type') == 'image_url':
-                    return True
+    """检查当前对话中是否包含图片（image_url 类型的内容），仅检查最后一条消息"""
+    if not messages:
+        return False
+    last_msg = messages[-1]
+    content = last_msg.get('content', '')
+    if isinstance(content, list):
+        for item in content:
+            if isinstance(item, dict) and item.get('type') == 'image_url':
+                return True
     return False
 
 
@@ -249,53 +251,53 @@ def _get_vision_fallback_backend():
 
 
 def _describe_and_replace_images(messages, fallback_backend, auth_headers):
-    """使用 vision 模型描述图片，将 image_url 替换为文本描述"""
+    """使用 vision 模型描述图片，仅处理最后一条消息中的图片"""
+    if not messages:
+        return messages
+    
     vision_url = f"{fallback_backend['endpoint']}/v1/chat/completions"
     fallback_verify = fallback_backend.get('verify_ssl', True)
+    last_msg = messages[-1]
+    content = last_msg.get('content', '')
+    if not isinstance(content, list):
+        return messages
     
-    new_messages = []
-    for msg in messages:
-        content = msg.get('content', '')
-        if not isinstance(content, list):
-            new_messages.append(msg)
-            continue
-        text_parts = [item.get('text', '') for item in content if isinstance(item, dict) and item.get('type') == 'text']
-        image_items = [item for item in content if isinstance(item, dict) and item.get('type') == 'image_url']
-        if not image_items:
-            new_messages.append(msg)
-            continue
-        
-        user_context = ' '.join(text_parts).strip()
-        prompt_text = f"用户在问：「{user_context}」请结合用户的问题，详细描述图片中的相关内容" if user_context else "请详细描述以下图片的内容"
+    text_parts = [item.get('text', '') for item in content if isinstance(item, dict) and item.get('type') == 'text']
+    image_items = [item for item in content if isinstance(item, dict) and item.get('type') == 'image_url']
+    if not image_items:
+        return messages
+    
+    user_context = ' '.join(text_parts).strip()
+    prompt_text = f"对话上下文是：「{user_context}」；请结合上下文，详细描述图片中的相关内容" if user_context else "请详细描述以下图片的内容"
+    if len(image_items) > 1:
+        prompt_text += "。请按顺序用「图1:」「图2:」的格式描述每张图片，不要遗漏"
+    vision_content = [{"type": "text", "text": prompt_text}]
+    vision_content.extend({"type": "image_url", "image_url": {"url": item['image_url']['url']}} for item in image_items)
+    vision_payload = {"model": fallback_backend.get('target_model_id'), "messages": [{"role": "user", "content": vision_content}], "stream": False, "max_tokens": 4096}
+    description_texts = []
+    try:
+        resp = requests.post(vision_url, json=vision_payload, headers=auth_headers, timeout=120, verify=fallback_verify)
+        resp.raise_for_status()
+        full_text = resp.json()['choices'][0]['message']['content']
         if len(image_items) > 1:
-            prompt_text += "。请按顺序用「图1:」「图2:」的格式描述每张图片，不要遗漏"
-        vision_content = [{"type": "text", "text": prompt_text}]
-        vision_content.extend({"type": "image_url", "image_url": {"url": item['image_url']['url']}} for item in image_items)
-        vision_payload = {"model": fallback_backend.get('target_model_id'), "messages": [{"role": "user", "content": vision_content}], "stream": False, "max_tokens": 4096}
-        description_texts = []
-        try:
-            resp = requests.post(vision_url, json=vision_payload, headers=auth_headers, timeout=120, verify=fallback_verify)
-            resp.raise_for_status()
-            full_text = resp.json()['choices'][0]['message']['content']
-            if len(image_items) > 1:
-                import re
-                matches = re.findall(r'图\d+:\s*(.*?)(?=\n图\d+:|\Z)', full_text, re.DOTALL)
-                description_texts = [m.strip() for m in matches] if matches and len(matches) == len(image_items) else [full_text] * len(image_items)
-            else:
-                description_texts = [full_text]
-        except Exception as e:
-            logger.error(f"图片描述请求失败: {e}")
-            description_texts = ["[图片描述失败]"] * len(image_items)
-
-        desc_iter = iter(description_texts)
-        new_content = [
-            {"type": "text", "text": f"[Image Description: {next(desc_iter)}]"}
-            if isinstance(item, dict) and item.get('type') == 'image_url'
-            else item
-            for item in content
-        ]
-        new_messages.append({**msg, 'content': new_content})
-
+            import re
+            matches = re.findall(r'图\d+:\s*(.*?)(?=\n图\d+:|\Z)', full_text, re.DOTALL)
+            description_texts = [m.strip() for m in matches] if matches and len(matches) == len(image_items) else [full_text] * len(image_items)
+        else:
+            description_texts = [full_text]
+    except Exception as e:
+        logger.error(f"图片描述请求失败: {e}")
+        description_texts = ["[图片描述失败]"] * len(image_items)
+    
+    desc_iter = iter(description_texts)
+    new_content = [
+        {"type": "text", "text": f"[Image Description: {next(desc_iter)}]"}
+        if isinstance(item, dict) and item.get('type') == 'image_url'
+        else item
+        for item in content
+    ]
+    new_messages = [*messages[:-1], {**last_msg, 'content': new_content}]
+    
     return new_messages
 
 
