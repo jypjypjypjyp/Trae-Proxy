@@ -8,7 +8,7 @@ domain: api.openai.com
 vision_fallback: qwen3.6-plus
 
 # 后端 API 配置列表
-# endpoint 默认从环境变量 ANTHROPIC_BASE_URL 读取， 也可以手动配置
+# endpoint 默认从环境变量 ANTHROPIC_BASE_URL 读取， 也可以手动为每个模型配置 endpoint
 apis:
   - name: "kimi-k2.6"
     custom_model_id: "kimi-k2.6"
