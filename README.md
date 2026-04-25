@@ -10,7 +10,8 @@ Trae 给自定义模型默认开启了视觉支持，部分模型实际不支持
 
 ### 2026-04-20
 
-- **新增 GLM 非标准事件拦截**：在 DEBUG 级别记录被抛弃的事件，然后 continue 继续监听 [issue2466](https://github.com/Trae-AI/TRAE/issues/2466)
+由于glm5.1使用了Trae不支持的event格式，导致异常中断，为此代理会自动拦截不支持的event。[issue2466](https://github.com/Trae-AI/TRAE/issues/2466)
+- **新增 GLM 非标准事件拦截**：在 DEBUG 级别记录被抛弃的事件，然后 continue 继续监听 
 - **新增 GLM 非标准事件日志记录**：将被抛弃的事件记录到 debug.log 文件中，方便调试
 
 ### 2026-04-15
