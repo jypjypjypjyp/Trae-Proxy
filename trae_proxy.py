@@ -23,12 +23,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger('trae_proxy')
 
+
 @app.route('/', methods=['GET'])
 def root():
     """处理根路径请求"""
     return jsonify({
         "message": "Welcome to the OpenAI API! Documentation is available at https://platform.openai.com/docs/api-reference"
     })
+
 
 @app.route('/v1', methods=['GET'])
 def v1_root():
@@ -39,6 +41,7 @@ def v1_root():
             "chat/completions": "/v1/chat/completions"
         }
     })
+
 
 @app.route('/v1/models', methods=['GET'])
 def list_models():
@@ -54,7 +57,8 @@ def list_models():
                         "id": api.get('custom_model_id', ''),
                         "object": "model",
                         "created": 1,
-                        "owned_by": "trae-proxy"
+                        "owned_by": "trae-proxy",
+                        "supports_image": api.get('supports_image', True)
                     })
         else:
             models.append({
@@ -72,6 +76,7 @@ def list_models():
         logger.error(f"列出模型时发生错误: {str(e)}")
         return jsonify({"error": f"内部服务器错误: {str(e)}"}), 500
 
+
 def debug_log(message):
     """调试日志记录"""
     DEBUG_MODE = MULTI_BACKEND_CONFIG['server'].get('debug', False)
@@ -80,6 +85,7 @@ def debug_log(message):
         with open("debug_request.log", "a", encoding="utf-8") as f:
             f.write(f"[{timestamp}] {message}\n")
         logger.debug(message)
+
 
 def load_multi_backend_config():
     """加载多后端配置"""
@@ -104,6 +110,7 @@ def load_multi_backend_config():
     except Exception as e:
         logger.error(f"加载多后端配置失败: {str(e)}")
         return False
+
 
 def select_backend_by_model(requested_model):
     """根据请求的模型选择后端API"""
@@ -131,6 +138,7 @@ def select_backend_by_model(requested_model):
     
     return None
 
+
 def generate_stream(response):
     """生成流式响应，按SSE事件边界拆分，保证顺序正确"""
     try:
@@ -155,6 +163,7 @@ def generate_stream(response):
     except Exception as e:
         logger.error(f"流式响应异常：{str(e)}")
         raise
+
 
 def simulate_stream(response_json, model_id):
     try:
@@ -209,6 +218,87 @@ def simulate_stream(response_json, model_id):
         err = {"error": f"模拟流式响应失败: {str(e)}"}
         yield f"data: {json.dumps(err, ensure_ascii=False)}\n\n".encode("utf-8")
 
+
+def _has_image_content(messages):
+    """检查消息中是否包含图片（image_url 类型的内容）"""
+    for msg in messages:
+        content = msg.get('content', '')
+        if isinstance(content, list):
+            for item in content:
+                if isinstance(item, dict) and item.get('type') == 'image_url':
+                    return True
+    return False
+
+
+def _get_vision_fallback_backend():
+    """获取用于图片描述的 fallback 后端"""
+    if not MULTI_BACKEND_CONFIG:
+        return None
+
+    vision_fallback = MULTI_BACKEND_CONFIG.get('vision_fallback', '')
+    if vision_fallback:
+        for api in MULTI_BACKEND_CONFIG.get('apis', []):
+            if api.get('active', False) and api.get('custom_model_id') == vision_fallback:
+                return api
+
+    for api in MULTI_BACKEND_CONFIG.get('apis', []):
+        if api.get('active', False) and api.get('supports_image', False):
+            return api
+
+    return None
+
+
+def _describe_and_replace_images(messages, fallback_backend, auth_headers):
+    """使用 vision 模型描述图片，将 image_url 替换为文本描述"""
+    vision_url = f"{fallback_backend['endpoint']}/v1/chat/completions"
+    fallback_verify = fallback_backend.get('verify_ssl', True)
+    
+    new_messages = []
+    for msg in messages:
+        content = msg.get('content', '')
+        if not isinstance(content, list):
+            new_messages.append(msg)
+            continue
+        text_parts = [item.get('text', '') for item in content if isinstance(item, dict) and item.get('type') == 'text']
+        image_items = [item for item in content if isinstance(item, dict) and item.get('type') == 'image_url']
+        if not image_items:
+            new_messages.append(msg)
+            continue
+        
+        user_context = ' '.join(text_parts).strip()
+        prompt_text = f"用户在问：「{user_context}」请结合用户的问题，详细描述图片中的相关内容" if user_context else "请详细描述以下图片的内容"
+        if len(image_items) > 1:
+            prompt_text += "。请按顺序用「图1:」「图2:」的格式描述每张图片，不要遗漏"
+        vision_content = [{"type": "text", "text": prompt_text}]
+        vision_content.extend({"type": "image_url", "image_url": {"url": item['image_url']['url']}} for item in image_items)
+        vision_payload = {"model": fallback_backend.get('target_model_id'), "messages": [{"role": "user", "content": vision_content}], "stream": False, "max_tokens": 4096}
+        description_texts = []
+        try:
+            resp = requests.post(vision_url, json=vision_payload, headers=auth_headers, timeout=120, verify=fallback_verify)
+            resp.raise_for_status()
+            full_text = resp.json()['choices'][0]['message']['content']
+            if len(image_items) > 1:
+                import re
+                matches = re.findall(r'图\d+:\s*(.*?)(?=\n图\d+:|\Z)', full_text, re.DOTALL)
+                description_texts = [m.strip() for m in matches] if matches and len(matches) == len(image_items) else [full_text] * len(image_items)
+            else:
+                description_texts = [full_text]
+        except Exception as e:
+            logger.error(f"图片描述请求失败: {e}")
+            description_texts = ["[图片描述失败]"] * len(image_items)
+
+        desc_iter = iter(description_texts)
+        new_content = [
+            {"type": "text", "text": f"[Image Description: {next(desc_iter)}]"}
+            if isinstance(item, dict) and item.get('type') == 'image_url'
+            else item
+            for item in content
+        ]
+        new_messages.append({**msg, 'content': new_content})
+
+    return new_messages
+
+
 @app.route('/v1/chat/completions', methods=['POST'])
 def chat_completions():
     """处理聊天完成请求"""
@@ -258,6 +348,27 @@ def chat_completions():
                 original_stream = req_json.get('stream', False)
                 req_json['stream'] = stream_mode == 'true'
                 debug_log(f"流模式从 {original_stream} 修改为 {req_json['stream']}")
+            
+            # 图片 fallback：当模型不支持图片且消息中包含图片时
+            if not selected_backend.get('supports_image', True):
+                messages = req_json.get('messages', [])
+                if _has_image_content(messages):
+                    logger.info(f"模型 {selected_backend['name']} 不支持图片，使用 vision fallback 模型描述图片")
+                    fallback_backend = _get_vision_fallback_backend()
+                    if fallback_backend:
+                        logger.info(f"vision fallback 模型: {fallback_backend['name']}")
+                        fb_headers = {'Content-Type': 'application/json'}
+                        fb_token = os.environ.get('ANTHROPIC_AUTH_TOKEN', '')
+                        if fb_token:
+                            fb_headers['Authorization'] = f'Bearer {fb_token}'
+                        else:
+                            fb_auth = request.headers.get('Authorization')
+                            if fb_auth:
+                                fb_headers['Authorization'] = fb_auth
+                        modified_messages = _describe_and_replace_images(messages, fallback_backend, fb_headers)
+                        req_json['messages'] = modified_messages
+                    else:
+                        logger.warning("未找到可用的 vision fallback 模型，图片将保持原样发送")
             
         # 准备转发请求
         headers = {
@@ -353,6 +464,7 @@ def chat_completions():
         logger.error(f"处理请求时发生错误：{str(e)}")
         return jsonify({"error": f"内部服务器错误：{str(e)}"}), 500
 
+
 def main():
     """主函数"""
     
@@ -385,6 +497,7 @@ def main():
     # 启动服务器
     logger.info("启动代理服务器...")
     app.run(host='0.0.0.0', port=MULTI_BACKEND_CONFIG['server'].get('port', 443), ssl_context=context, threaded=True)
+
 
 if __name__ == "__main__":
     main()
