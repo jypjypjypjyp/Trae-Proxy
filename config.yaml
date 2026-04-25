@@ -40,6 +40,16 @@ apis:
     target_model_id: "minimax-m2.7"
     stream_mode: null
     active: true
+  - name: "deepseek-v4-flash"
+    custom_model_id: "deepseek-v4-flash"
+    target_model_id: "deepseek-v4-flash"
+    stream_mode: null
+    active: true
+  - name: "deepseek-v4-pro"
+    custom_model_id: "deepseek-v4-pro"
+    target_model_id: "deepseek-v4-pro"
+    stream_mode: null
+    active: true
 
 # 代理服务器配置
 server:
