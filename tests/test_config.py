@@ -1,6 +1,5 @@
 import os
 import yaml
-import tempfile
 
 
 def test_config_yaml_exists():

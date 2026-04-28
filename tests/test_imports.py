@@ -17,14 +17,14 @@ def test_import_trae_proxy():
 
 
 def test_import_core_state():
-    from core.state import AppState, BackendStat
+    from core.state import AppState
     state = AppState()
     assert state.service_running is False
     assert state.request_count == 0
 
 
 def test_import_core_stats():
-    from core.stats import RequestTracker, estimate_tokens
+    from core.stats import estimate_tokens
     assert estimate_tokens("") == 0
     assert estimate_tokens("hello world") > 0
 

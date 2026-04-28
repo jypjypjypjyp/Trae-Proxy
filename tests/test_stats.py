@@ -1,5 +1,5 @@
 import time
-from core.state import AppState, BackendStat
+from core.state import AppState
 from core.stats import estimate_tokens, RequestTracker
 
 
