@@ -3,7 +3,8 @@ import ssl
 import os
 import logging
 from werkzeug.serving import make_server
-from trae_proxy import create_app, load_multi_backend_config
+from trae_proxy import create_app
+import trae_proxy
 from core.state import AppState
 
 logger = logging.getLogger('trae_proxy')
@@ -18,7 +19,9 @@ class ServiceThread(threading.Thread):
 
     def run(self):
         try:
-            load_multi_backend_config()
+            trae_proxy.load_multi_backend_config()
+            if trae_proxy.MULTI_BACKEND_CONFIG:
+                self.app_state.set_config(trae_proxy.MULTI_BACKEND_CONFIG)
             config = self.app_state.get_config()
             if not config:
                 logger.error("配置加载失败")

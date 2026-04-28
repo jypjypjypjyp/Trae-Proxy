@@ -65,3 +65,7 @@ class AppState:
     def get_config(self) -> dict:
         with self._lock:
             return dict(self.config)
+
+    @property
+    def debug_mode(self) -> bool:
+        return bool(self.config.get("server", {}).get("debug", False))

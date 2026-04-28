@@ -4,6 +4,7 @@
 import os
 import sys
 import time
+import threading
 import logging
 from core.state import AppState
 from core.service import ServiceThread
@@ -20,25 +21,20 @@ logger = logging.getLogger('trae_proxy')
 def main():
     app_state = AppState()
 
-    # 启动服务线程
     service = ServiceThread(app_state)
     service.start()
-    time.sleep(0.5)  # 给服务一点时间初始化
+    time.sleep(0.5)
 
-    # 使用可变对象包装，以便在闭包中修改
     service_holder = [service]
-
-    # 托盘回调
-    def on_show():
-        pass  # UI 启动后会设置实际回调
+    _need_show = threading.Event()
 
     def on_toggle_service(restart=False):
         current = service_holder[0]
-        if current.is_running() or restart:
+        if current.is_running():
             logger.info("停止服务...")
             current.stop()
             current.join(timeout=3)
-        if not current.is_running() or restart:
+        if restart:
             logger.info("启动服务...")
             new_service = ServiceThread(app_state)
             service_holder[0] = new_service
@@ -48,23 +44,21 @@ def main():
         logger.info("正在退出...")
         app_state.exiting = True
         service_holder[0].stop()
-        tray.stop()
-        os._exit(0)
+        _need_show.set()
 
-    # 启动托盘线程
-    tray = TrayThread(app_state, on_show, on_toggle_service, on_exit)
-    tray.start()
+    def on_show_ui():
+        _need_show.set()
 
-    # 启动 UI（阻塞主线程）
-    try:
-        run_ui(app_state, tray)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        logger.info("清理资源...")
-        service_holder[0].stop()
-        tray.stop()
-        sys.exit(0)
+    tray = TrayThread(app_state, on_toggle_service, on_exit, on_show_ui)
+    threading.Thread(target=tray.run, daemon=True).start()
+
+    run_ui(app_state)
+
+    while not app_state.exiting:
+        _need_show.clear()
+        _need_show.wait()
+        if not app_state.exiting:
+            run_ui(app_state)
 
 
 if __name__ == "__main__":

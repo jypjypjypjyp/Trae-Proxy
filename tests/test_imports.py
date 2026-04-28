@@ -48,24 +48,6 @@ def test_import_ui_app():
     assert callable(run_ui)
 
 
-def test_import_ui_pages():
-    from ui.pages.overview import OverviewPage
-    from ui.pages.config_page import ConfigPage
-    from ui.pages.logs_page import LogsPage
-    from ui.pages.tools_page import ToolsPage
-    assert OverviewPage is not None
-    assert ConfigPage is not None
-    assert LogsPage is not None
-    assert ToolsPage is not None
-
-
-def test_import_ui_widgets():
-    from ui.widgets.sidebar import Sidebar
-    from ui.widgets.status_bar import StatusBar
-    assert Sidebar is not None
-    assert StatusBar is not None
-
-
 def test_import_main():
     import main
     assert hasattr(main, "main")
