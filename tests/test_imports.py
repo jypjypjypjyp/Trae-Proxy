@@ -9,8 +9,11 @@
 def test_import_trae_proxy():
     import trae_proxy
     assert hasattr(trae_proxy, "create_app")
-    assert hasattr(trae_proxy, "run_server")
     assert hasattr(trae_proxy, "load_multi_backend_config")
+    assert hasattr(trae_proxy, "select_backend_by_model")
+    assert hasattr(trae_proxy, "_has_image_content")
+    assert hasattr(trae_proxy, "_get_vision_fallback_backend")
+    assert hasattr(trae_proxy, "_describe_and_replace_images")
 
 
 def test_import_core_state():

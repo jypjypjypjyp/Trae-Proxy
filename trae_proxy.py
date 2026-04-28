@@ -23,7 +23,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger('trae_proxy')
 
-
 def create_app(app_state: AppState = None):
     global APP_STATE
     APP_STATE = app_state
@@ -57,7 +56,8 @@ def create_app(app_state: AppState = None):
                             "id": api.get('custom_model_id', ''),
                             "object": "model",
                             "created": 1,
-                            "owned_by": "trae-proxy"
+                            "owned_by": "trae-proxy",
+                            "supports_image": api.get('supports_image', True)
                         })
             return jsonify({"object": "list", "data": models})
         except Exception as e:
@@ -111,6 +111,26 @@ def create_app(app_state: AppState = None):
                     original_stream = req_json.get('stream', False)
                     req_json['stream'] = stream_mode == 'true'
                     debug_log(f"流模式从 {original_stream} 修改为 {req_json['stream']}")
+
+                if not selected_backend.get('supports_image', True):
+                    messages = req_json.get('messages', [])
+                    if _has_image_content(messages):
+                        logger.info(f"模型 {selected_backend['name']} 不支持图片，使用 vision fallback 模型描述图片")
+                        fallback_backend = _get_vision_fallback_backend()
+                        if fallback_backend:
+                            logger.info(f"vision fallback 模型: {fallback_backend['name']}")
+                            fb_headers = {'Content-Type': 'application/json'}
+                            fb_token = os.environ.get('ANTHROPIC_AUTH_TOKEN', '')
+                            if fb_token:
+                                fb_headers['Authorization'] = f'Bearer {fb_token}'
+                            else:
+                                fb_auth = request.headers.get('Authorization')
+                                if fb_auth:
+                                    fb_headers['Authorization'] = fb_auth
+                            modified_messages = _describe_and_replace_images(messages, fallback_backend, fb_headers)
+                            req_json['messages'] = modified_messages
+                        else:
+                            logger.warning("未找到可用的 vision fallback 模型，图片将保持原样发送")
 
             backend_name = selected_backend['name'] if selected_backend else 'default'
             with RequestTracker(APP_STATE, backend_name) as tracker:
@@ -276,6 +296,7 @@ def simulate_stream(response_json, model_id):
         yield f"data: {json.dumps(err, ensure_ascii=False)}\n\n".encode("utf-8")
 
 
+
 def debug_log(message):
     if MULTI_BACKEND_CONFIG and MULTI_BACKEND_CONFIG.get('server', {}).get('debug', False):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
@@ -327,45 +348,72 @@ def select_backend_by_model(requested_model):
         return apis[0]
     return None
 
-
-def run_server(port=443, app_state=None):
-    load_multi_backend_config()
-    app = create_app(app_state)
-
-    domain = MULTI_BACKEND_CONFIG.get('domain', 'api.openai.com') if MULTI_BACKEND_CONFIG else 'api.openai.com'
-    CERT_FILE = f"ca/{domain}.crt"
-    KEY_FILE = f"ca/{domain}.key"
-
-    if not os.path.exists(CERT_FILE) or not os.path.exists(KEY_FILE):
-        logger.error(f"证书文件不存在: {CERT_FILE} 或 {KEY_FILE}")
-        logger.info("请先运行 generate_certs.py 生成证书")
-        sys.exit(1)
-
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    context.load_cert_chain(CERT_FILE, KEY_FILE)
-
-    assert MULTI_BACKEND_CONFIG
-    logger.info("多后端模式已启用")
-    apis = MULTI_BACKEND_CONFIG.get('apis', [])
-    for api in apis:
-        status = "激活" if api.get('active', False) else "未激活"
-        logger.info(f"  - {api['name']} [{status}]: {api.get('endpoint', '')} -> {api.get('custom_model_id', '')}; 流模式: {api.get('stream_mode', None)}")
-    logger.info(f"调试模式: {MULTI_BACKEND_CONFIG['server'].get('debug', False)}")
-    logger.info(f"{domain}证书文件: {CERT_FILE}")
-    logger.info(f"{domain}私钥文件: {KEY_FILE}")
-    logger.info("启动代理服务器...")
-
-    if app_state:
-        app_state.set_service_running(True)
-
-    app.run(host='0.0.0.0', port=port, ssl_context=context, threaded=True)
+def _has_image_content(messages):
+    if not messages:
+        return False
+    last_msg = messages[-1]
+    content = last_msg.get('content', '')
+    if isinstance(content, list):
+        for item in content:
+            if isinstance(item, dict) and item.get('type') == 'image_url':
+                return True
+    return False
 
 
-def main():
-    load_multi_backend_config()
-    port = MULTI_BACKEND_CONFIG['server'].get('port', 443) if MULTI_BACKEND_CONFIG else 443
-    run_server(port=port)
+def _get_vision_fallback_backend():
+    if not MULTI_BACKEND_CONFIG:
+        return None
+    vision_fallback = MULTI_BACKEND_CONFIG.get('vision_fallback', '')
+    if vision_fallback:
+        for api in MULTI_BACKEND_CONFIG.get('apis', []):
+            if api.get('active', False) and api.get('custom_model_id') == vision_fallback:
+                return api
+    for api in MULTI_BACKEND_CONFIG.get('apis', []):
+        if api.get('active', False) and api.get('supports_image', False):
+            return api
+    return None
 
 
-if __name__ == "__main__":
-    main()
+def _describe_and_replace_images(messages, fallback_backend, auth_headers):
+    if not messages:
+        return messages
+    vision_url = f"{fallback_backend['endpoint']}/v1/chat/completions"
+    fallback_verify = fallback_backend.get('verify_ssl', True)
+    last_msg = messages[-1]
+    content = last_msg.get('content', '')
+    if not isinstance(content, list):
+        return messages
+    text_parts = [item.get('text', '') for item in content if isinstance(item, dict) and item.get('type') == 'text']
+    image_items = [item for item in content if isinstance(item, dict) and item.get('type') == 'image_url']
+    if not image_items:
+        return messages
+    user_context = ' '.join(text_parts).strip()
+    prompt_text = f"对话上下文是：「{user_context}」；请结合上下文，详细描述图片中的相关内容" if user_context else "请详细描述以下图片的内容"
+    if len(image_items) > 1:
+        prompt_text += "。请按顺序用「图1:」「图2:」的格式描述每张图片，不要遗漏"
+    vision_content = [{"type": "text", "text": prompt_text}]
+    vision_content.extend({"type": "image_url", "image_url": {"url": item['image_url']['url']}} for item in image_items)
+    vision_payload = {"model": fallback_backend.get('target_model_id'), "messages": [{"role": "user", "content": vision_content}], "stream": False, "max_tokens": 4096}
+    description_texts = []
+    try:
+        resp = requests.post(vision_url, json=vision_payload, headers=auth_headers, timeout=120, verify=fallback_verify)
+        resp.raise_for_status()
+        full_text = resp.json()['choices'][0]['message']['content']
+        if len(image_items) > 1:
+            import re
+            matches = re.findall(r'图\d+:\s*(.*?)(?=\n图\d+:|\Z)', full_text, re.DOTALL)
+            description_texts = [m.strip() for m in matches] if matches and len(matches) == len(image_items) else [full_text] * len(image_items)
+        else:
+            description_texts = [full_text]
+    except Exception as e:
+        logger.error(f"图片描述请求失败: {e}")
+        description_texts = ["[图片描述失败]"] * len(image_items)
+    desc_iter = iter(description_texts)
+    new_content = [
+        {"type": "text", "text": f"[Image Description: {next(desc_iter)}]"}
+        if isinstance(item, dict) and item.get('type') == 'image_url'
+        else item
+        for item in content
+    ]
+    new_messages = [*messages[:-1], {**last_msg, 'content': new_content}]
+    return new_messages
