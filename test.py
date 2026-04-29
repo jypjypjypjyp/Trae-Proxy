@@ -5,7 +5,7 @@ import requests
 def test_api():
     url = "https://api.openai.com/v1/chat/completions"
     payload = {
-        "model": "glm-5.1",
+        "model": "qwen3.5-flash",
         "messages": [
             {"role": "user", "content": "Test"}
         ]
@@ -15,7 +15,7 @@ def test_api():
         "Content-Type": "application/json",
         "Authorization": f"Bearer {auth_token}"
     }
-    response = requests.post(url, json=payload, headers=headers, timeout=60)
+    response = requests.post(url, json=payload, headers=headers, timeout=60, verify="ca\ca.crt")
     print(f"Status: {response.status_code}")
     print(f"Model: {response.json().get('model')}")
     print(f"Content: {response.json()['choices'][0]['message']['content']}")

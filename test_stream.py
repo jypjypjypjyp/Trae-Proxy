@@ -8,9 +8,9 @@ import requests
 def test_stream_order():
     url = "https://api.openai.com/v1/chat/completions"
     payload = {
-        "model": "qwen3.6-plus",
+        "model": "qwen3.5-flash",
         "messages": [
-            {"role": "user", "content": "请依次输出0到200的数字，逗号间隔，不加空格，只输出数字不要其他内容"}
+            {"role": "user", "content": "请依次输出0到50的数字，逗号间隔，不加空格，只输出数字不要其他内容"}
         ],
         "stream": True
     }
@@ -20,7 +20,7 @@ def test_stream_order():
         "Authorization": f"Bearer {auth_token}"
     }
     print("发送流式请求...")
-    response = requests.post(url, json=payload, headers=headers, stream=True, timeout=60, verify=True)
+    response = requests.post(url, json=payload, headers=headers, stream=True, timeout=60, verify="ca\ca.crt")
     if response.status_code != 200:
         print(f"请求失败: {response.status_code}")
         print(response.text)
