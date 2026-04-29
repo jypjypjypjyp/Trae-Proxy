@@ -8,3 +8,6 @@ proxy.log
 AGENTS.md
 MEMORY.md
 docs
+dist
+build
+*.spec

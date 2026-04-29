@@ -1,4 +1,5 @@
 import os
+import threading
 import pystray
 from PIL import Image, ImageDraw
 from pystray import MenuItem, Menu
@@ -40,11 +41,19 @@ class TrayThread:
         self.icon = pystray.Icon(
             "trae_proxy", self._create_image(), "Trae Proxy", self._get_menu()
         )
+
+        def _poll():
+            while self.icon is not None:
+                self.update_menu()
+                threading.Event().wait(3)
+
+        threading.Thread(target=_poll, daemon=True).start()
         self.icon.run()
 
     def stop(self):
         if self.icon:
             self.icon.stop()
+            self.icon = None
 
     def update_menu(self):
         if self.icon:

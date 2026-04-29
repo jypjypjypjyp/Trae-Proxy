@@ -1,83 +1,83 @@
-# Trae-Proxy 配置文件
-# 代理域名配置
-domain: api.openai.com
-
-# 图片描述回退模型（可选）
-# 当请求的模型不支持图片时，会使用此模型对图片进行描述
-# 不配置则自动选择第一个 supports_image=true 的模型
-vision_fallback: qwen3.5-flash
-
-# 后端 API 配置列表
-# endpoint 默认从环境变量 ANTHROPIC_BASE_URL 读取， 也可以手动为每个模型配置 endpoint
 apis:
-  - name: "kimi-k2.6"
-    custom_model_id: "kimi-k2.6"
-    target_model_id: "kimi-k2.6"
-    stream_mode: null
-    active: true
-    supports_image: true
-  - name: "claude-sonnet-4-6"
-    custom_model_id: "claude-sonnet-4-6"
-    target_model_id: "claude-sonnet-4-6"
-    stream_mode: null
-    active: true
-    supports_image: true
-  - name: "gemini-3.1-pro"
-    custom_model_id: "gemini-3.1-pro"
-    target_model_id: "gemini-3.1-pro"
-    stream_mode: null
-    active: true
-    supports_image: true
-  - name: "gpt-5.4"
-    custom_model_id: "gpt-5.4"
-    target_model_id: "gpt-5.4"
-    stream_mode: null
-    active: true
-    supports_image: true
-  - name: "qwen3.6-plus"
-    custom_model_id: "qwen3.6-plus"
-    target_model_id: "qwen3.6-plus"
-    stream_mode: null
-    active: true
-    supports_image: true
-  - name: "qwen3.5-flash"
-    custom_model_id: "qwen3.5-flash"
-    target_model_id: "qwen3.5-flash"
-    stream_mode: null
-    active: true
-    supports_image: true
-  - name: "qwen3.6-max-anthropic"
-    custom_model_id: "qwen3.6-max-anthropic"
-    target_model_id: "qwen3.6-max-anthropic"
-    stream_mode: null
-    active: true
-    supports_image: true
-  - name: "glm-5.1"
-    custom_model_id: "glm-5.1"
-    target_model_id: "glm-5.1"
-    stream_mode: null
-    active: true
-    supports_image: false
-  - name: "minimax-m2.7"
-    custom_model_id: "minimax-m2.7"
-    target_model_id: "minimax-m2.7"
-    stream_mode: null
-    active: true
-    supports_image: false
-  - name: "deepseek-v4-flash"
-    custom_model_id: "deepseek-v4-flash"
-    target_model_id: "deepseek-v4-flash"
-    stream_mode: null
-    active: true
-    supports_image: false
-  - name: "deepseek-v4-pro"
-    custom_model_id: "deepseek-v4-pro"
-    target_model_id: "deepseek-v4-pro"
-    stream_mode: null
-    active: true
-    supports_image: false
-
-# 代理服务器配置
+- active: true
+  custom_model_id: kimi-k2.6
+  endpoint: https://llm-gateway.momenta.works
+  name: kimi-k2.6
+  stream_mode: null
+  supports_image: true
+  target_model_id: kimi-k2.6
+- active: true
+  custom_model_id: claude-sonnet-4-6
+  endpoint: https://llm-gateway.momenta.works
+  name: claude-sonnet-4-6
+  stream_mode: null
+  supports_image: true
+  target_model_id: claude-sonnet-4-6
+- active: true
+  custom_model_id: gemini-3.1-pro
+  endpoint: https://llm-gateway.momenta.works
+  name: gemini-3.1-pro
+  stream_mode: null
+  supports_image: true
+  target_model_id: gemini-3.1-pro
+- active: true
+  custom_model_id: gpt-5.4
+  endpoint: https://llm-gateway.momenta.works
+  name: gpt-5.4
+  stream_mode: null
+  supports_image: true
+  target_model_id: gpt-5.4
+- active: true
+  custom_model_id: qwen3.6-plus
+  endpoint: https://llm-gateway.momenta.works
+  name: qwen3.6-plus
+  stream_mode: null
+  supports_image: true
+  target_model_id: qwen3.6-plus
+- active: true
+  custom_model_id: qwen3.5-flash
+  endpoint: https://llm-gateway.momenta.works
+  name: qwen3.5-flash
+  stream_mode: null
+  supports_image: true
+  target_model_id: qwen3.5-flash
+- active: true
+  custom_model_id: qwen3.6-max-anthropic
+  endpoint: https://llm-gateway.momenta.works
+  name: qwen3.6-max-anthropic
+  stream_mode: null
+  supports_image: true
+  target_model_id: qwen3.6-max-anthropic
+- active: true
+  custom_model_id: glm-5.1
+  endpoint: https://llm-gateway.momenta.works
+  name: glm-5.1
+  stream_mode: null
+  supports_image: false
+  target_model_id: glm-5.1
+- active: true
+  custom_model_id: minimax-m2.7
+  endpoint: https://llm-gateway.momenta.works
+  name: minimax-m2.7
+  stream_mode: null
+  supports_image: false
+  target_model_id: minimax-m2.7
+- active: true
+  custom_model_id: deepseek-v4-flash
+  endpoint: https://llm-gateway.momenta.works
+  name: deepseek-v4-flash
+  stream_mode: null
+  supports_image: false
+  target_model_id: deepseek-v4-flash
+- active: true
+  custom_model_id: deepseek-v4-pro
+  endpoint: https://llm-gateway.momenta.works
+  name: deepseek-v4-pro
+  stream_mode: null
+  supports_image: false
+  target_model_id: deepseek-v4-pro
+domain: api.openai.com
 server:
-  port: 443
   debug: false
+  port: 443
+vision_fallback: qwen3.5-flash

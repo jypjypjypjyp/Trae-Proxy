@@ -1,4 +1,5 @@
 import threading
+import logging
 from collections import deque
 from dataclasses import dataclass
 from typing import Optional
@@ -69,3 +70,19 @@ class AppState:
     @property
     def debug_mode(self) -> bool:
         return bool(self.config.get("server", {}).get("debug", False))
+
+
+class _LogHandler(logging.Handler):
+    def __init__(self, app_state: AppState):
+        super().__init__()
+        self.app_state = app_state
+
+    def emit(self, record):
+        msg = f"{record.levelname}: {record.getMessage()}"
+        self.app_state.add_log(msg)
+
+
+def install_log_handler(app_state: AppState):
+    handler = _LogHandler(app_state)
+    handler.setLevel(logging.INFO)
+    logging.getLogger('trae_proxy').addHandler(handler)

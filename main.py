@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os
-import sys
 import time
 import threading
 import logging
-from core.state import AppState
+from core.state import AppState, install_log_handler
 from core.service import ServiceThread
 from core.tray import TrayThread
 from ui.app import run_ui
@@ -20,6 +18,7 @@ logger = logging.getLogger('trae_proxy')
 
 def main():
     app_state = AppState()
+    install_log_handler(app_state)
 
     service = ServiceThread(app_state)
     service.start()

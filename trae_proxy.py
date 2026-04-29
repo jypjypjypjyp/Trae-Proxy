@@ -4,15 +4,16 @@
 from flask import Flask, request, Response, jsonify, stream_with_context
 import requests
 import json
-import ssl
 import logging
 import os
-import sys
+import subprocess
+import shutil
 import yaml
 from datetime import datetime
 
 from core.state import AppState
 from core.stats import RequestTracker
+from generate_certs import check_openssl, create_default_config_files, generate_ca_cert, generate_server_cert
 
 MULTI_BACKEND_CONFIG = None
 APP_STATE = None
@@ -187,7 +188,7 @@ def create_app(app_state: AppState = None):
                     debug_log("返回流式响应")
                     try:
                         return Response(
-                            stream_with_context(generate_stream(response, tracker, APP_STATE)),
+                            stream_with_context(generate_stream(response, tracker)),
                             content_type=response.headers.get('Content-Type', 'text/event-stream')
                         )
                     except Exception as e:
@@ -224,10 +225,10 @@ def create_app(app_state: AppState = None):
     return app
 
 
-def generate_stream(response, tracker=None, app_state=None):
+def generate_stream(response:requests.Response, tracker: RequestTracker|None = None):
     try:
-        buffer = ""
-        output_content = ""
+        buffer: str = ""
+        output_content: str = ""
         for chunk in response.iter_content(chunk_size=None, decode_unicode=True):
             if chunk:
                 buffer += chunk
@@ -242,9 +243,10 @@ def generate_stream(response, tracker=None, app_state=None):
                     if tracker and "data:" in event:
                         try:
                             data_str = event.split("data:", 1)[1].strip()
-                            data_json = json.loads(data_str)
-                            delta = data_json.get("choices", [{}])[0].get("delta", {})
+                            data_json: dict[str, any] = json.loads(data_str)
+                            delta: dict[str, any] = data_json.get("choices", [{}])[0].get("delta", {})
                             output_content += delta.get("content", "")
+                            output_content += delta.get("reasoning_content", "")
                         except:
                             pass
                     yield (event + "\n\n").encode("utf-8")
@@ -252,6 +254,7 @@ def generate_stream(response, tracker=None, app_state=None):
             yield (buffer + "\n\n").encode("utf-8")
         if tracker:
             tracker.set_output(output_content)
+            tracker.finalize_output_stats()
     except requests.exceptions.ConnectionError as e:
         logger.error(f"流式响应连接中断：{str(e)}")
         raise
@@ -305,13 +308,29 @@ def debug_log(message):
         logger.debug(message)
 
 
+def ensure_certificates():
+    domain = "api.openai.com"
+    cert_file = f"ca/{domain}.crt"
+    key_file = f"ca/{domain}.key"
+    if os.path.exists(cert_file) and os.path.exists(key_file):
+        return
+    logger.info("证书文件不存在，自动生成...")
+    check_openssl()
+    os.makedirs("ca", exist_ok=True)
+    create_default_config_files(domain)
+    generate_ca_cert()
+    generate_server_cert(domain)
+    logger.info("证书生成完成")
+
+
 def load_multi_backend_config():
     global MULTI_BACKEND_CONFIG
     try:
+        ensure_certificates()
         config_file = "config.yaml"
         if os.path.exists(config_file):
             with open(config_file, 'r', encoding='utf-8') as f:
-                config = yaml.safe_load(f)
+                config: dict[str, any] = yaml.safe_load(f)
                 MULTI_BACKEND_CONFIG = config
                 base_url = os.environ.get('ANTHROPIC_BASE_URL', '')
                 for api in config.get('apis', []):

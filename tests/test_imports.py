@@ -51,6 +51,16 @@ def test_import_ui_app():
     assert callable(run_ui)
 
 
+def test_import_ui_config_page():
+    from ui.pages.config_page import build_config_page
+    assert callable(build_config_page)
+
+
+def test_import_ui_stats_page():
+    from ui.pages.stats_page import build_stats_page
+    assert callable(build_stats_page)
+
+
 def test_import_main():
     import main
     assert hasattr(main, "main")
