@@ -51,13 +51,13 @@ def main():
     tray = TrayThread(app_state, on_toggle_service, on_exit, on_show_ui)
     threading.Thread(target=tray.run, daemon=True).start()
 
-    run_ui(app_state)
+    run_ui(app_state, on_toggle_service)
 
     while not app_state.exiting:
         _need_show.clear()
         _need_show.wait()
         if not app_state.exiting:
-            run_ui(app_state)
+            run_ui(app_state, on_toggle_service)
 
 
 if __name__ == "__main__":

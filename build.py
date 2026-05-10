@@ -22,7 +22,7 @@ def main():
     dist_dir = os.path.join(root, "dist")
     build_dir = os.path.join(root, "build")
     spec_file = os.path.join(root, "trae-proxy.spec")
-    icon_path = os.path.join(root, "asset", "logo.png")
+    icon_path = os.path.join(root, "assets", "logo.png")
 
     # 清理旧的打包产物
     for p in [dist_dir, build_dir, spec_file]:
@@ -57,7 +57,7 @@ def main():
         f' --noconsole'
         f' --onedir'
         f' --name "Trae-Proxy"'
-        f' --add-data "asset;asset"'
+        f' --add-data "assets;assets"'
         f' --add-data "config.yaml;."'
         f' --add-data "requirements.txt;."'
         f' --paths "{site_packages}"'

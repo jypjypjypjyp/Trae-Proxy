@@ -328,23 +328,31 @@ def load_multi_backend_config():
     try:
         ensure_certificates()
         config_file = "config.yaml"
-        if os.path.exists(config_file):
-            with open(config_file, 'r', encoding='utf-8') as f:
-                config: dict[str, any] = yaml.safe_load(f)
-                MULTI_BACKEND_CONFIG = config
-                base_url = os.environ.get('ANTHROPIC_BASE_URL', '')
-                for api in config.get('apis', []):
-                    if not api.get('endpoint') and base_url:
-                        api['endpoint'] = base_url
-                if base_url:
-                    logger.info(f"已从环境变量 ANTHROPIC_BASE_URL 加载 endpoint: {base_url}")
-                logger.info(f"已加载多后端配置，共 {len(config.get('apis', []))} 个API配置")
-                if APP_STATE:
-                    APP_STATE.set_config(config)
-                return True
-        else:
-            logger.warning("配置文件不存在，使用单后端模式")
-            return False
+        if not os.path.exists(config_file):
+            logger.info("配置文件不存在，创建默认配置 config.yaml")
+            default_config = {
+                "domain": "api.openai.com",
+                "apis": [],
+                "server": {
+                    "debug": False,
+                    "port": 443
+                }
+            }
+            with open(config_file, 'w', encoding='utf-8') as f:
+                yaml.dump(default_config, f, allow_unicode=True)
+        with open(config_file, 'r', encoding='utf-8') as f:
+            config: dict[str, any] = yaml.safe_load(f)
+            MULTI_BACKEND_CONFIG = config
+            base_url = os.environ.get('ANTHROPIC_BASE_URL', '')
+            for api in config.get('apis', []):
+                if not api.get('endpoint') and base_url:
+                    api['endpoint'] = base_url
+            if base_url:
+                logger.info(f"已从环境变量 ANTHROPIC_BASE_URL 加载 endpoint: {base_url}")
+            logger.info(f"已加载多后端配置，共 {len(config.get('apis', []))} 个API配置")
+            if APP_STATE:
+                APP_STATE.set_config(config)
+            return True
     except Exception as e:
         logger.error(f"加载多后端配置失败: {str(e)}")
         return False

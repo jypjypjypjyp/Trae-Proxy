@@ -15,7 +15,7 @@ class TrayThread:
         self.icon = None
 
     def _create_image(self):
-        path = os.path.join(os.path.dirname(__file__), "..", "asset", "logo.png")
+        path = os.path.join(os.path.dirname(__file__), "..", "assets", "logo.png")
         if os.path.exists(path):
             return Image.open(path).convert("RGBA")
         img = Image.new('RGBA', (64, 64), color=(59, 130, 246, 255))

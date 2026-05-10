@@ -1,77 +1,60 @@
 apis:
 - active: true
   custom_model_id: kimi-k2.6
-  endpoint: https://llm-gateway.momenta.works
   name: kimi-k2.6
   stream_mode: null
   supports_image: true
   target_model_id: kimi-k2.6
 - active: true
   custom_model_id: claude-sonnet-4-6
-  endpoint: https://llm-gateway.momenta.works
   name: claude-sonnet-4-6
   stream_mode: null
   supports_image: true
   target_model_id: claude-sonnet-4-6
 - active: true
   custom_model_id: gemini-3.1-pro
-  endpoint: https://llm-gateway.momenta.works
   name: gemini-3.1-pro
   stream_mode: null
   supports_image: true
   target_model_id: gemini-3.1-pro
 - active: true
   custom_model_id: gpt-5.4
-  endpoint: https://llm-gateway.momenta.works
   name: gpt-5.4
   stream_mode: null
   supports_image: true
   target_model_id: gpt-5.4
 - active: true
   custom_model_id: qwen3.6-plus
-  endpoint: https://llm-gateway.momenta.works
   name: qwen3.6-plus
   stream_mode: null
   supports_image: true
   target_model_id: qwen3.6-plus
 - active: true
   custom_model_id: qwen3.5-flash
-  endpoint: https://llm-gateway.momenta.works
   name: qwen3.5-flash
   stream_mode: null
   supports_image: true
   target_model_id: qwen3.5-flash
 - active: true
   custom_model_id: qwen3.6-max-anthropic
-  endpoint: https://llm-gateway.momenta.works
   name: qwen3.6-max-anthropic
   stream_mode: null
   supports_image: true
   target_model_id: qwen3.6-max-anthropic
 - active: true
   custom_model_id: glm-5.1
-  endpoint: https://llm-gateway.momenta.works
   name: glm-5.1
   stream_mode: null
   supports_image: false
   target_model_id: glm-5.1
 - active: true
-  custom_model_id: minimax-m2.7
-  endpoint: https://llm-gateway.momenta.works
-  name: minimax-m2.7
-  stream_mode: null
-  supports_image: false
-  target_model_id: minimax-m2.7
-- active: true
   custom_model_id: deepseek-v4-flash
-  endpoint: https://llm-gateway.momenta.works
   name: deepseek-v4-flash
   stream_mode: null
   supports_image: false
   target_model_id: deepseek-v4-flash
 - active: true
   custom_model_id: deepseek-v4-pro
-  endpoint: https://llm-gateway.momenta.works
   name: deepseek-v4-pro
   stream_mode: null
   supports_image: false

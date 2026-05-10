@@ -29,7 +29,7 @@ Trae 给自定义模型默认开启了视觉支持，部分模型实际不支持
 
 
 <div align="center">
-  <img src="asset/logo.png" alt="Trae Proxy" width="64" height="64">
+  <img src="assets/logo.png" alt="Trae Proxy" width="64" height="64">
   <h1>Trae Proxy</h1>
 </div>
 

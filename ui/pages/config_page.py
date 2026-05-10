@@ -1,6 +1,5 @@
 import flet as ft
 import yaml
-import os
 import logging
 from core.state import AppState
 
@@ -14,11 +13,11 @@ _STREAM_OPTIONS = [
 
 
 def build_config_page(app_state: AppState, on_navigate=None):
+    config = app_state.get_config()
     refs = {}
 
     def _save():
-        config = app_state.get_config()
-        config.setdefault("server", {})
+        nonlocal config
         config["server"]["port"] = int(refs["port"].value)
         config["server"]["debug"] = refs["debug"].value
         config["vision_fallback"] = refs["vision"].value or None
@@ -27,17 +26,16 @@ def build_config_page(app_state: AppState, on_navigate=None):
         for i, api in enumerate(apis):
             prefix = f"api_{i}"
             api["active"] = refs[f"{prefix}_active"].value
-            api["custom_model_id"] = refs[f"{prefix}_custom"].value.strip()
-            api["target_model_id"] = refs[f"{prefix}_target"].value.strip()
-            val = refs[f"{prefix}_endpoint"].value.strip()
+            api["custom_model_id"] = (refs[f"{prefix}_custom"].value or "").strip()
+            api["target_model_id"] = (refs[f"{prefix}_target"].value or "").strip()
+            val = (refs[f"{prefix}_endpoint"].value or "").strip()
             api["endpoint"] = val if val else None
             raw = refs[f"{prefix}_stream"].value
             api["stream_mode"] = None if raw == "null" else (raw == "true")
             api["supports_image"] = refs[f"{prefix}_image"].value
 
         try:
-            config_path = os.path.join(os.path.dirname(__file__), "..", "..", "config.yaml")
-            with open(config_path, "w", encoding="utf-8") as f:
+            with open("config.yaml", "w", encoding="utf-8") as f:
                 yaml.dump(config, f, allow_unicode=True, default_flow_style=False)
             app_state.set_config(config)
             logger.info("配置已保存")
@@ -47,7 +45,6 @@ def build_config_page(app_state: AppState, on_navigate=None):
     def _on_change(e=None):
         _save()
 
-    config = app_state.get_config()
     server = config.get("server", {})
     apis = config.get("apis", [])
 
@@ -82,24 +79,107 @@ def build_config_page(app_state: AppState, on_navigate=None):
     )
     refs["vision"] = vision_dropdown
 
-    api_cards = []
-    for i, api in enumerate(apis):
-        prefix = f"api_{i}"
-        card = _build_api_card(i, api, prefix, refs, _on_change)
-        api_cards.append(card)
+    api_cards_container = ft.Column(spacing=0)
+
+    def _rebuild_api_cards():
+        keys = [k for k in refs if k.startswith("api_")]
+        for k in keys:
+            del refs[k]
+        api_cards_container.controls.clear()
+        apis = config.get("apis", [])
+        for i, api in enumerate(apis):
+            prefix = f"api_{i}"
+            card = _build_api_card(i, api, prefix, refs, _on_change, on_delete=_confirm_delete)
+            api_cards_container.controls.append(card)
+
+        vision_options = [ft.dropdown.Option("")]
+        for api_item in apis:
+            if not api_item.get("supports_image", True):
+                continue
+            cid = api_item.get("custom_model_id", "")
+            if cid:
+                vision_options.append(ft.dropdown.Option(cid))
+        refs["vision"].options = vision_options
+        current = refs["vision"].value
+        if current and not any(o.key == current for o in vision_options):
+            refs["vision"].value = ""
+
+    def _add_model(e):
+        apis = config.get("apis", [])
+        n = len(apis) + 1
+        apis.append({
+            "active": True,
+            "custom_model_id": "",
+            "target_model_id": "",
+            "endpoint": None,
+            "name": f"新模型 {n}",
+            "stream_mode": None,
+            "supports_image": True,
+        })
+        _rebuild_api_cards()
+        _save()
+        e.page.update()
+
+    def _confirm_delete(e):
+        prefix = e.control.data
+        idx = int(prefix.split("_")[1])
+        page = e.page
+        apis = config.get("apis", [])
+        if not (0 <= idx < len(apis)):
+            return
+        dlg = ft.AlertDialog(
+            title=ft.Text("确认删除"),
+            content=ft.Text(f"确定删除模型「{apis[idx].get('name', '')}」吗？"),
+            actions=[
+                ft.TextButton("取消", on_click=lambda e: page.pop_dialog()),
+                ft.TextButton("删除", on_click=lambda e: _do_delete(idx, page)),
+            ],
+        )
+        page.show_dialog(dlg)
+
+    def _do_delete(idx, page):
+        apis = config.get("apis", [])
+        if 0 <= idx < len(apis):
+            del apis[idx]
+        _rebuild_api_cards()
+        _save()
+        page.pop_dialog()
+        page.update()
+
+    def _refresh_from_file(e):
+        nonlocal config
+        try:
+            with open("config.yaml", "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f) or {}
+            app_state.set_config(config)
+            refs["port"].value = str(config.get("server", {}).get("port", 443))
+            refs["debug"].value = config.get("server", {}).get("debug", False)
+            _rebuild_api_cards()
+            refs["vision"].value = config.get("vision_fallback", "") or ""
+            e.page.update()
+            logger.info("配置已从文件重新加载")
+        except Exception as ex:
+            logger.error(f"刷新配置失败: {ex}")
+
+    api_cards_container.controls.clear()
+    _rebuild_api_cards()
+
+    add_btn = ft.ElevatedButton("+ 添加模型", on_click=_add_model, icon=ft.Icons.ADD)
 
     notice = ft.Container(
-        content=ft.Text(
-            "配置修改后自动保存，重启服务后生效",
-            size=12,
-            italic=True,
-            color=ft.Colors.GREY_500,
-        ),
+        content=ft.Row([
+            ft.Text(
+                "配置修改后自动保存，重启服务后生效。端点或认证为空时默认从环境变量 ANTHROPIC_BASE_URL / ANTHROPIC_AUTH_TOKEN 读取",
+                size=12, italic=True, color=ft.Colors.GREY_500, expand=True,
+            ),
+            ft.IconButton(ft.Icons.REFRESH, icon_size=16, tooltip="从文件重新加载配置", on_click=_refresh_from_file),
+        ], spacing=4),
         padding=ft.padding.only(top=8, bottom=4),
     )
 
     return ft.Container(ft.Column(
         [
+            notice,
             ft.Container(
                 content=ft.Text("服务器设置", size=16, weight=ft.FontWeight.BOLD),
                 padding=ft.padding.only(bottom=4),
@@ -116,15 +196,15 @@ def build_config_page(app_state: AppState, on_navigate=None):
                 content=ft.Text("后端 API 配置", size=16, weight=ft.FontWeight.BOLD),
                 padding=ft.padding.only(bottom=4),
             ),
-            *api_cards,
-            notice,
+            api_cards_container,
+            add_btn,
         ],
         scroll=ft.ScrollMode.AUTO,
         expand=True,
     ), padding=16)
 
 
-def _build_api_card(index, api, prefix, refs, on_change):
+def _build_api_card(index, api, prefix, refs, on_change, on_delete=None):
     active_switch = ft.Switch(
         value=api.get("active", True),
         on_change=on_change,
@@ -182,6 +262,7 @@ def _build_api_card(index, api, prefix, refs, on_change):
                         ft.Container(expand=True),
                         ft.Text("激活", size=12),
                         active_switch,
+                        ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_size=18, tooltip="删除", on_click=on_delete, data=prefix),
                     ],
                     spacing=4,
                 ),

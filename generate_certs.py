@@ -7,20 +7,23 @@ import subprocess
 import tempfile
 import atexit
 import shutil
+import logging
+
+logger = logging.getLogger(__name__)
 
 # 临时文件列表，用于退出时清理
 temp_files = []
 
 
 def error(message):
-    """打印错误信息并退出"""
-    print(f"错误: {message}", file=sys.stderr)
+    """记录错误日志并退出"""
+    logger.error(message)
     sys.exit(1)
 
 
 def run_command(command, check=True):
     """运行命令并检查返回码"""
-    print(f"执行命令: {command}")
+    logger.info(f"执行命令: {command}")
     result = subprocess.run(
         command,
         shell=True,
@@ -61,7 +64,12 @@ def check_openssl():
     try:
         run_command("openssl version")
     except:
-        error("未找到 OpenSSL。请确保 OpenSSL 已安装并在 PATH 中。")
+        logger.error("未找到 OpenSSL，无法生成证书。")
+        logger.error("请从 https://slproweb.com/products/Win32OpenSSL.html 下载安装 OpenSSL for Windows")
+        logger.error("建议安装选项: Win64 OpenSSL v3.x.x (Light 版即可，约 5MB)")
+        logger.error("安装后请确保将 OpenSSL 的 bin 目录添加到系统 PATH 环境变量中。")
+        logger.error("（默认安装路径: C:\\Program Files\\OpenSSL-Win64\\bin）")
+        sys.exit(1)
 
 
 def create_default_config_files(domain="api.openai.com"):
@@ -147,7 +155,7 @@ DNS.1 = {domain}
 
 def generate_ca_cert():
     """生成 CA 证书和私钥"""
-    print("生成 CA 证书...")
+    logger.info("生成 CA 证书...")
 
     # 生成 CA 私钥
     run_command("openssl genrsa -out ca/ca.key 2048")
@@ -160,12 +168,12 @@ def generate_ca_cert():
         '-subj "/C=CN/ST=State/L=City/O=TraeProxy CA/OU=TraeProxy/CN=TraeProxy Root CA"'
     )
 
-    print("CA 证书生成完成")
+    logger.info("CA 证书生成完成")
 
 
 def generate_server_cert(domain="api.openai.com"):
     """为指定域名生成服务器证书"""
-    print(f"为域名 {domain} 生成服务器证书...")
+    logger.info(f"为域名 {domain} 生成服务器证书...")
 
     required_files = [
         "ca/openssl.cnf",
@@ -263,11 +271,11 @@ def main():
     # 生成服务器证书
     generate_server_cert(domain)
 
-    print("所有证书生成完成")
-    print(f"CA 证书: ca/ca.crt")
-    print(f"CA 私钥: ca/ca.key")
-    print(f"服务器证书: ca/{domain}.crt")
-    print(f"服务器私钥: ca/{domain}.key")
+    logger.info("所有证书生成完成")
+    logger.info("CA 证书: ca/ca.crt")
+    logger.info("CA 私钥: ca/ca.key")
+    logger.info(f"服务器证书: ca/{domain}.crt")
+    logger.info(f"服务器私钥: ca/{domain}.key")
 
 
 if __name__ == "__main__":
