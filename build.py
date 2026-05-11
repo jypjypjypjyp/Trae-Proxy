@@ -59,7 +59,7 @@ def main():
         f' --name "Trae-Proxy"'
         f' --add-data "assets;assets"'
         f' --add-data "config.yaml;."'
-        f' --add-data "requirements.txt;."'
+        f' --add-data "pyproject.toml;."'
         f' --paths "{site_packages}"'
         f' --hidden-import flask'
         f' --hidden-import requests'
@@ -108,7 +108,7 @@ def main():
     # 打包完成后复制 config.yaml（如果 PyInstaller 没处理好）
     output_dir = os.path.join(dist_dir, "Trae-Proxy")
     if os.path.isdir(output_dir):
-        for f in ["config.yaml", "requirements.txt"]:
+        for f in ["config.yaml", "pyproject.toml"]:
             src = os.path.join(root, f)
             dst = os.path.join(output_dir, f)
             if os.path.exists(src) and not os.path.exists(dst):

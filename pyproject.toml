@@ -1,0 +1,16 @@
+[project]
+name = "trae-proxy"
+version = "0.0.3"
+description = "Trae API Proxy - 多后端模型路由代理服务器"
+requires-python = ">=3.11"
+dependencies = [
+    "flask==2.3.3",
+    "flet==0.84.0",
+    "flet-desktop==0.84.0",
+    "pillow>=10.0.0",
+    "pyyaml==6.0",
+    "pystray>=0.19.0",
+    "requests==2.26.0",
+    "werkzeug==2.3.7",
+    "pyinstaller>=6.20.0",
+]
